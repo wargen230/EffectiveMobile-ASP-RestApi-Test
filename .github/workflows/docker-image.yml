@@ -15,4 +15,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . -p 5001:5001 --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . Dockerfile
