@@ -1,0 +1,4 @@
+Yandex.Direct:/ru
+Revdinsky worker:/ru/svrd/revda,/ru/svrd/pervik
+Newspaper of the Ural Muscovites:/ru/msk,/ru/permobl,/ru/chelobl
+Cool advertising:/ru/svrd
