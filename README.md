@@ -68,9 +68,9 @@ docker run --rm -p 5001:5001 testapi:latest
 dotnet test ./TestAPI.Tests
 ```
 
-### Python-тесты (если есть)
+### Python-тесты
 
-Для динамического тестирования нагрузки использовалось опенсорс приложение locust, тесты лежат в папке `TestAPI.PythonTests`. Если есть `requirements.txt` — установи зависимости и запусти `pytest`.
+Для динамического тестирования нагрузки использовалось опенсорс приложение locust, тесты лежат в папке `TestAPI.PythonTests`.
 
 #### Установка locust
 
