@@ -83,6 +83,7 @@ docker run --rm -p 5001:5001 testapi:latest
 
 Проект тестов находится в `TestAPI.Tests`.
 
+Запуск:
 ```bash
 dotnet test ./TestAPI.Tests
 ```
