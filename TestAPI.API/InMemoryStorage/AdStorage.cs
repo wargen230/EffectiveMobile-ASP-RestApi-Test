@@ -5,11 +5,18 @@ using TestAPI.Models;
 
 namespace TestAPI.InMemoryStorage
 {
+    /// <summary>
+    /// In-memory storage for advertising platforms.
+    /// Provides methods to load platforms from a file and search platforms by location.
+    /// </summary>
     public class AdStorage : IAdStorage
     {
         private readonly ILogger<AdStorage> _logger;
         private readonly IMemoryCache _cache;
 
+        /// <summary>
+        /// List of advertising platforms currently loaded in memory.
+        /// </summary>
         public List<AdModel> Platforms { get; set; } = new();
 
         public AdStorage(ILogger<AdStorage> logger, IMemoryCache cache)
@@ -17,6 +24,13 @@ namespace TestAPI.InMemoryStorage
             _logger = logger;
             _cache = cache;
         }
+
+        /// <summary>
+        /// Loads advertising platforms from a file.
+        /// Each line in the file should be in the format: PlatformName:Location1,Location2,...
+        /// Invalid lines or duplicates are skipped.
+        /// </summary>
+        /// <param name="path">Path to the file to load.</param>
         public async Task LoadFromFileAsync(string path)
         {
             var lines = await File.ReadAllLinesAsync(path);
@@ -25,6 +39,7 @@ namespace TestAPI.InMemoryStorage
                 _logger.LogError("File is empty");
                 return;
             }
+
             var _platforms = new List<AdModel>();
             int indexer = 0;
 
@@ -84,10 +99,15 @@ namespace TestAPI.InMemoryStorage
             }
 
             Platforms = _platforms;
-            _cache.Dispose();
             _logger.LogInformation($"Loaded {Platforms.Count} ad platforms from file '{path}'.");
         }
 
+        /// <summary>
+        /// Searches for advertising platforms available in the specified location.
+        /// Uses in-memory caching for faster repeated queries.
+        /// </summary>
+        /// <param name="location">The location to search platforms for. Must start with '/' and contain only letters, digits, underscores, or slashes.</param>
+        /// <returns>List of platform names that match the location.</returns>
         public List<string> FindPlatforms(string location)
         {
             if (!IsValidLocation(location))
@@ -122,6 +142,11 @@ namespace TestAPI.InMemoryStorage
             return distinct;
         }
 
+        /// <summary>
+        /// Validates whether a location string is in a correct format.
+        /// </summary>
+        /// <param name="location">The location string to validate.</param>
+        /// <returns>True if the location is valid; otherwise, false.</returns>
         private bool IsValidLocation(string location)
         {
             if (string.IsNullOrWhiteSpace(location)) return false;
@@ -130,7 +155,7 @@ namespace TestAPI.InMemoryStorage
             foreach (var ch in location)
             {
                 if (!char.IsLetterOrDigit(ch) && ch != '/' && ch != '_') return false;
-                if(location.EndsWith("/") && location.Length > 1) return false;
+                if (location.EndsWith("/") && location.Length > 1) return false;
             }
             return true;
         }

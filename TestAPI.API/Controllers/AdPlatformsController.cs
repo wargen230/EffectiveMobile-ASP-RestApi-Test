@@ -7,18 +7,28 @@ using TestAPI.Models;
 
 namespace TestAPI.Controllers
 {
+    /// <summary>
+    /// Controller for managing advertising platforms.
+    /// Allows uploading platform files and searching platforms by location.
+    /// </summary>
     [ApiController]
     [Route("api/")]
     public class AdPlatformsController : ControllerBase
     {
         private readonly IAdStorage _adStorage;
         private readonly ILogger<AdPlatformsController> _logger;
+
         public AdPlatformsController(IAdStorage adStorage, ILogger<AdPlatformsController> logger)
         {
             _adStorage = adStorage;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Uploads a file containing advertising platforms and saves it to temporary storage.
+        /// </summary>
+        /// <param name="file">The file containing platforms to upload.</param>
+        /// <returns>Returns the result of the upload operation.</returns>
         [HttpPost("upload")]
         public async Task<IActionResult> Upload(IFormFile file)
         {
@@ -40,6 +50,11 @@ namespace TestAPI.Controllers
             return Ok("File is loaded");
         }
 
+        /// <summary>
+        /// Searches for advertising platforms by the specified location.
+        /// </summary>
+        /// <param name="location">The location to search for platforms.</param>
+        /// <returns>A list of platforms matching the location, or an error message if none found.</returns>
         [HttpGet("search")]
         public IActionResult Search([FromQuery] string location)
         {
@@ -51,10 +66,10 @@ namespace TestAPI.Controllers
 
             var platforms = _adStorage.FindPlatforms(location);
 
-            if(platforms.Count == 0)
+            if (platforms.Count == 0)
             {
-                _logger.LogWarning($"There are no platforms in this location: {location} , or the platform file has not been uploaded");
-                return BadRequest("No one find");
+                _logger.LogWarning($"There are no platforms in this location: {location}, or the platform file has not been uploaded");
+                return BadRequest("No platforms found");
             }
 
             _logger.LogInformation($"Platforms have been searched by location: {location}");
