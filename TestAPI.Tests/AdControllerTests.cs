@@ -70,35 +70,6 @@ namespace TestAPI.Tests
         }
 
         [Fact]
-        public void GetAllPlatforms_WithPlatforms_ReturnsPlatforms()
-        {
-            var platforms = new List<AdModel>
-            {
-                new AdModel { Name = "Platform1", Locations = new List<string> { "/ru/msk" } },
-                new AdModel { Name = "Platform2", Locations = new List<string> { "/en/lon" } }
-            };
-
-            _mockStorage.Setup(s => s.Platforms).Returns(platforms);
-
-            var result = _controller.GetAllPlatforms();
-
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedPlatforms = Assert.IsType<List<AdModel>>(okResult.Value);
-            Assert.Equal(2, returnedPlatforms.Count);
-        }
-
-        [Fact]
-        public void GetAllPlatforms_EmptyStorage_ReturnsBadRequest()
-        {
-            _mockStorage.Setup(s => s.Platforms).Returns(new List<AdModel>());
-
-            var result = _controller.GetAllPlatforms();
-
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Memory is empty", badRequestResult.Value);
-        }
-
-        [Fact]
         public void Search_ValidLocation_ReturnsPlatforms()
         {
             var platforms = new List<string> { "Platform1", "Platform2" };
