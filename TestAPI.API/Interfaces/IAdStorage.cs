@@ -4,8 +4,9 @@ namespace TestAPI.Interfaces
 {
     public interface IAdStorage
     {
-	    List<AdModel> Platforms { get; }
-        Task LoadFromFileAsync(string filePath);
+        Task LoadFromFileAsync(string path);
         List<string> FindPlatforms(string location);
+        Dictionary<string, List<string>> GetAllPlatforms();
+        int GetDeclaredLocationCount();
     }
 }
