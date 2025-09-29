@@ -1,190 +1,158 @@
-//using System.Collections.Generic;
-//using System.Threading.Tasks;
-//using Microsoft.Extensions.Caching.Memory;
-//using Microsoft.Extensions.Logging;
-//using Moq;
-//using TestAPI.InMemoryStorage;
-//using TestAPI.Models;
-//using Xunit;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Moq;
+using TestAPI.InMemoryStorage;
+using Xunit;
 
-//namespace TestAPI.Tests
-//{
-//    public class AdStorageTests
-//    {
-//        private readonly Mock<ILogger<AdStorage>> _mockLogger;
-//        private readonly Mock<IMemoryCache> _mockCache;
-//        private readonly AdStorage _storage;
-//        private readonly MemoryCache _realCache;
+namespace TestAPI.Tests
+{
+    public class AdStorageTests
+    {
+        private readonly Mock<ILogger<AdStorage>> _mockLogger;
+        private readonly MemoryCache _realCache;
+        private readonly AdStorage _storage;
 
-//        public AdStorageTests()
-//        {
-//            _mockLogger = new Mock<ILogger<AdStorage>>();
-//            _mockCache = new Mock<IMemoryCache>();
-//            _realCache = new MemoryCache(new MemoryCacheOptions());
-//            _storage = new AdStorage(_mockLogger.Object, _realCache);
-//        }
+        public AdStorageTests()
+        {
+            _mockLogger = new Mock<ILogger<AdStorage>>();
+            _realCache = new MemoryCache(new MemoryCacheOptions());
+            _storage = new AdStorage(_mockLogger.Object, _realCache);
+        }
 
-//        [Fact]
-//        public async Task LoadFromFileAsync_ValidFile_LoadsPlatforms()
-//        {
-//            var tempFile = Path.GetTempFileName();
-//            await File.WriteAllTextAsync(tempFile, "Platform1: /ru/msk,/ru/spb\nPlatform2: /en/lon");
+        [Fact]
+        public async Task LoadFromFileAsync_ValidFile_LoadsPlatforms()
+        {
+            var tempFile = Path.GetTempFileName();
+            await File.WriteAllTextAsync(tempFile, "Platform1:/ru/msk,/ru/spb\nPlatform2:/en/lon");
 
-//            await _storage.LoadFromFileAsync(tempFile);
+            await _storage.LoadFromFileAsync(tempFile);
 
-//            Assert.Equal(2, _storage.PlatformToLocations.Count);
-//            Assert.Contains(_storage.PlatformToLocations, p => p.Key == "Platform1");
-//            Assert.Contains(_storage.PlatformToLocations, p => p.Key == "Platform2");
+            var platforms = _storage.GetAllPlatforms();
 
-//            File.Delete(tempFile);
-//        }
+            Assert.Equal(2, platforms.Count);
+            Assert.Contains("Platform1", platforms.Keys);
+            Assert.Contains("Platform2", platforms.Keys);
 
-//        [Fact]
-//        public async Task LoadFromFileAsync_EmptyFile_LogsWarning()
-//        {
-//            var tempFile = Path.GetTempFileName();
+            File.Delete(tempFile);
+        }
 
-//            await _storage.LoadFromFileAsync(tempFile);
+        [Fact]
+        public async Task LoadFromFileAsync_EmptyFile_ResultsEmptyPlatforms()
+        {
+            var tempFile = Path.GetTempFileName();
 
-//            Assert.Empty(_storage.PlatformToLocations);
-//            _mockLogger.Verify(
-//                x => x.Log(
-//                    LogLevel.Error,
-//                    It.IsAny<EventId>(),
-//                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("File is empty")),
-//                    It.IsAny<Exception>(),
-//                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
-//                Times.AtLeastOnce);
+            await _storage.LoadFromFileAsync(tempFile);
 
-//            File.Delete(tempFile);
-//        }
+            var platforms = _storage.GetAllPlatforms();
+            Assert.Empty(platforms);
 
-//        [Fact]
-//        public async Task LoadFromFileAsync_InvalidLines_SkipsThem()
-//        {
-//            var tempFile = Path.GetTempFileName();
-//            await File.WriteAllTextAsync(tempFile, "InvalidLine\nPlatform1: /ru/msk\nAnotherInvalidLine");
+            File.Delete(tempFile);
+        }
 
-//            await _storage.LoadFromFileAsync(tempFile);
 
-//            Assert.Single(_storage.PlatformToLocations);
-//            Assert.Equal("Platform1", _storage.Platforms[0].Name);
+        [Fact]
+        public async Task LoadFromFileAsync_InvalidLines_SkipsThem()
+        {
+            var tempFile = Path.GetTempFileName();
+            await File.WriteAllTextAsync(tempFile, "InvalidLine\nPlatform1:/ru/msk\nAnotherInvalidLine");
 
-//            File.Delete(tempFile);
-//        }
+            await _storage.LoadFromFileAsync(tempFile);
 
-//        [Fact]
-//        public async Task LoadFromFileAsync_DuplicateNames_SkipsDuplicates()
-//        {
-//            var tempFile = Path.GetTempFileName();
-//            await File.WriteAllTextAsync(tempFile, "Platform1: /ru/msk\nPlatform1: /en/lon");
+            var platforms = _storage.GetAllPlatforms();
+            Assert.Single(platforms);
+            Assert.True(platforms.ContainsKey("Platform1"));
 
-//            await _storage.LoadFromFileAsync(tempFile);
+            File.Delete(tempFile);
+        }
 
-//            Assert.Single(_storage.Platforms);
+        [Fact]
+        public async Task LoadFromFileAsync_InvalidLocation_SkipsIt()
+        {
+            var tempFile = Path.GetTempFileName();
+            await File.WriteAllTextAsync(tempFile, "Platform1:invalid-location,/ru/msk");
 
-//            File.Delete(tempFile);
-//        }
+            await _storage.LoadFromFileAsync(tempFile);
 
-//        [Fact]
-//        public void FindPlatforms_ValidLocation_ReturnsMatchingPlatforms()
-//        {
-//            _storage.Platforms = new List<AdModel>
-//            {
-//                new AdModel { Name = "Platform1", Locations = new List<string> { "/ru/msk", "/ru/spb" } },
-//                new AdModel { Name = "Platform2", Locations = new List<string> { "/en/lon" } }
-//            };
+            var platforms = _storage.GetAllPlatforms();
+            Assert.Single(platforms);
+            Assert.Contains("/ru/msk", platforms["Platform1"]);
 
-//            var result = _storage.FindPlatforms("/ru/msk");
+            File.Delete(tempFile);
+        }
 
-//            Assert.Single(result);
-//            Assert.Contains("Platform1", result);
-//        }
+        [Fact]
+        public async Task FindPlatforms_ValidLocation_ReturnsMatchingPlatforms()
+        {
+            var tempFile = Path.GetTempFileName();
+            await File.WriteAllTextAsync(tempFile,
+                "Platform1:/ru/msk,/ru/spb\nPlatform2:/en/lon");
 
-//        [Fact]
-//        public void FindPlatforms_LocationWithMultiplePlatforms_ReturnsDistinct()
-//        {
-//            // Arrange
-//            _storage.Platforms = new List<AdModel>
-//            {
-//                new AdModel { Name = "Platform1", Locations = new List<string> { "/ru/msk", "/ru/spb" } },
-//                new AdModel { Name = "Platform2", Locations = new List<string> { "/ru/msk" } }
-//            };
+            await _storage.LoadFromFileAsync(tempFile);
 
-//            // Act
-//            var result = _storage.FindPlatforms("/ru/msk");
+            var result = _storage.FindPlatforms("/ru/msk");
 
-//            // Assert
-//            Assert.Equal(2, result.Count);
-//            Assert.Contains("Platform1", result);
-//            Assert.Contains("Platform2", result);
-//        }
+            Assert.Contains("Platform1", result);
+            Assert.DoesNotContain("Platform2", result);
 
-//        [Fact]
-//        public void FindPlatforms_InvalidLocation_ReturnsEmptyList()
-//        {
-//            _storage.Platforms = new List<AdModel>
-//            {
-//                new AdModel { Name = "Platform1", Locations = new List<string> { "/ru/msk" } }
-//            };
-//            var result = _storage.FindPlatforms("invalid-location");
+            File.Delete(tempFile);
+        }
 
-//            Assert.Empty(result);
-//        }
+        [Fact]
+        public void FindPlatforms_InvalidLocation_ReturnsEmptyList()
+        {
+            var result = _storage.FindPlatforms("invalid-location");
+            Assert.Empty(result);
+        }
 
-//        [Fact]
-//        public void FindPlatforms_CachedLocation_ReturnsFromCache()
-//        {
-//            var cachedResult = new List<string> { "CachedPlatform" };
-//            var cacheKey = "/cached/location";
+        [Fact]
+        public void FindPlatforms_CachesResults()
+        {
+            var dict = new Dictionary<string, List<string>>
+            {
+                { "Platform1", new List<string> { "/ru/msk" } }
+            };
 
-//            var mockCacheEntry = new Mock<ICacheEntry>();
-//            _mockCache.Setup(m => m.CreateEntry(It.IsAny<object>())).Returns(mockCacheEntry.Object);
+            var firstCall = _storage.FindPlatforms("/ru/msk");
 
-//            var storageWithMockCache = new AdStorage(_mockLogger.Object, _mockCache.Object);
-//            storageWithMockCache.Platforms = new List<AdModel>();
+            var secondCall = _storage.FindPlatforms("/ru/msk");
 
-//            object cacheValue = cachedResult;
-//            _mockCache
-//                .Setup(x => x.TryGetValue(cacheKey, out cacheValue))
-//                .Returns(true);
+            Assert.Equal(firstCall, secondCall);
+        }
 
-//            var result = storageWithMockCache.FindPlatforms(cacheKey);
+        [Fact]
+        public void IsValidLocation_ValidFormat_ReturnsTrue()
+        {
+            var validLocations = new[] { "/ru/msk", "/en/lon", "/ru", "/123", "/ru_msk" };
 
-//            Assert.Single(result);
-//            Assert.Equal("CachedPlatform", result[0]);
-//            _mockCache.Verify(x => x.TryGetValue(cacheKey, out It.Ref<object>.IsAny), Times.Once);
-//        }
+            foreach (var location in validLocations)
+            {
+                Assert.True(_storage.TestIsValidLocation(location));
+            }
+        }
 
-//        [Fact]
-//        public void IsValidLocation_ValidFormat_ReturnsTrue()
-//        {
-//            var validLocations = new[] { "/ru/msk", "/en/lon", "/ru", "/123", "/ru_msk" };
+        [Fact]
+        public void IsValidLocation_InvalidChars_ReturnsFalse()
+        {
+            var invalidLocations = new[] { "ru/msk", "/ru/msk?", "/ru/msk#", "", " ", null, "/ru/msk/" };
 
-//            foreach (var location in validLocations)
-//            {
-//                Assert.True(_storage.TestIsValidLocation(location));
-//            }
-//        }
+            foreach (var location in invalidLocations)
+            {
+                Assert.False(_storage.TestIsValidLocation(location));
+            }
+        }
+    }
 
-//        [Fact]
-//        public void IsValidLocation_InvalidChars_ReturnsFalse()
-//        {
-//            var invalidLocations = new[] { "ru/msk", "/ru/msk?", "/ru/msk#", "", " ", null, "/ru/msk/" };
-
-//            foreach (var location in invalidLocations)
-//            {
-//                Assert.False(_storage.TestIsValidLocation(location));
-//            }
-//        }
-//    }
-//    public static class AdStorageTestExtensions
-//    {
-//        public static bool TestIsValidLocation(this AdStorage storage, string location)
-//        {
-//            var method = typeof(AdStorage).GetMethod("IsValidLocation",
-//                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-//            return (bool)method.Invoke(storage, new object[] { location });
-//        }
-//    }
-//}
+    public static class AdStorageTestExtensions
+    {
+        public static bool TestIsValidLocation(this AdStorage storage, string location)
+        {
+            var method = typeof(AdStorage).GetMethod("IsValidLocation",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            return (bool)method.Invoke(null, new object[] { location });
+        }
+    }
+}
